@@ -1,0 +1,48 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "app",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "app",
+                "resourceId": "/app"
+            },
+            "debuggerSettings": {
+                "targetConfigs/MSP430FR2355.ccxml": {
+                    "TI MSP430 USB1/MSP430": {
+                        "data": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n<PropertyValues/>\n"
+                    }
+                }
+            }
+        },
+        {
+            "name": "i2c-led-bar",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "i2c-led-bar",
+                "resourceId": "/i2c-led-bar"
+            }
+        },
+        {
+            "name": "controller",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "controller",
+                "resourceId": "/controller"
+            }
+        },
+        {
+            "name": "i2c-lcd",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "i2c-lcd",
+                "resourceId": "/i2c-lcd"
+            }
+        }
+    ]
+}
