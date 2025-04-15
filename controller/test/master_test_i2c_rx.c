@@ -13,7 +13,6 @@ int main(void)
 
     UCB1CTLW0 |= UCMODE_3;                  // Put into I2C mode
     UCB1CTLW0 |= UCMST;                     // Put into master mode
-    //UCB1CTLW0 |= UCTR;                      // Put into Tx mode
     UCB1I2CSA = 0x0058;                     // Slave address = 0x68
 
     UCB1CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
@@ -52,7 +51,6 @@ int main(void)
         while ((UCB1IFG  & UCSTPIFG) == 0); // Wait for STOP
             UCB0IFG &= ~UCSTPIFG;           // Clear STOP flag
     }
-    return 0;
 }
 
 //----------------------------------------------------------------------
@@ -63,11 +61,11 @@ int main(void)
 __interrupt void EUSCI_B1_I2C_ISR(void){
     switch (UCB1IV)
     {
-        case 0x16:
-            data_in = UCB0RXBUF;
+        case 0x16:                  // ID 16: RXIFG0
+            data_in = UCB1RXBUF;    // Retrieve data
             break;
-        case 0x18:
-            UCB0TXBUF = 0x03;
+        case 0x18:                  // ID 18: TXIFG0
+            UCB1TXBUF = 0x03;       // Send Reg Addr
             break;
         default:
             break;
