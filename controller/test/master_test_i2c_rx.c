@@ -15,7 +15,7 @@ int main(void)
     UCB1CTLW0 |= UCMST;                     // Put into master mode
     UCB1I2CSA = 0x0058;                     // Slave address = 0x68
 
-    UCB1CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
+    UCB1CTLW1 |= UCASTP_2;                  // Auto STOP when UCB1TBCNT reached
     UCB1TBCNT = 0X01;                       // # of Bytes in Packet
 
     P4SEL1 &= ~BIT6;                        // We want P1.2 = SDA
@@ -30,10 +30,8 @@ int main(void)
                                             // to activate previously configured port settings
     UCB1CTLW0 &= ~UCSWRST;                  // Take eUSCI_B0 out of SW reset
     UCB1IE |= UCTXIE0;                      // Enable I2C Tx0 IRQ
-    UCB0IE |= UCRXIE0;
+    UCB1IE |= UCRXIE0;
     __enable_interrupt();                   // Enable Maskable IRQs
-
-    int i;
     
     while(1)
     {
@@ -41,7 +39,7 @@ int main(void)
         UCB1CTLW0 |= UCTR;                  // Put into Tx mode
         UCB1CTLW0 |= UCTXSTT;               // Generate START condition
         
-        while ((UCB0IFG  & UCSTPIFG) == 0); // Wait for STOP
+        while ((UCB1IFG  & UCSTPIFG) == 0); // Wait for STOP
             UCB1IFG &= ~UCSTPIFG;           // Clear STOP flag
         
         // Recieve Data from Rx
@@ -49,7 +47,7 @@ int main(void)
         UCB1CTLW0 |= UCTXSTT;               // Generate START condition
         
         while ((UCB1IFG  & UCSTPIFG) == 0); // Wait for STOP
-            UCB0IFG &= ~UCSTPIFG;           // Clear STOP flag
+            UCB1IFG &= ~UCSTPIFG;           // Clear STOP flag
     }
 }
 

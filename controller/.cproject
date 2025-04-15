@@ -88,7 +88,7 @@
                         </toolChain>
                     </folderInfo>
                     <sourceEntries>
-                        <entry excluding="test/master_test_i2c.c|src|test/master_test_adc.c|app|src/keypad.h|src/keypad.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+                        <entry excluding="test/master_test_i2c_rx.c|test/master_test_i2c.c|src|test/master_test_adc.c|app|src/keypad.h|src/keypad.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
                     </sourceEntries>
                 </configuration>
             </storageModule>
