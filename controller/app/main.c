@@ -198,7 +198,7 @@ char keypad_unlocked(void)
                     if ((PROWIN & (1 << row)) == 0) {
                         key_unlocked = keypad[row][col];
                         if (key_unlocked != 'D') {
-                            master_i2c_send(key_unlocked, 0x068);   // led slave
+                            master_i2c_send(key_unlocked, 0x058);   // led slave
                             master_i2c_send(key_unlocked, 0x048);   // lcd slave
                         }
                         // Wait for key release
@@ -207,7 +207,7 @@ char keypad_unlocked(void)
 
                         if (key_unlocked == 'D') {
                             rgb_led_continue(3);            // Set LED to red when 'D' is pressed
-                            master_i2c_send('D', 0x068);    // led slave
+                            master_i2c_send('D', 0x058);    // led slave
                             master_i2c_send('D', 0x048);    // lcd slave
                             bool_unlocked = false;
                             adc_off();
@@ -219,10 +219,14 @@ char keypad_unlocked(void)
             // Deactivate column
             PCOLOUT |= (1 << col);
         }
-        if (bool_unlocked && adc_ready)
+        if (bool_unlocked)
         {
-            adc_ready = false;
-            adc_moving_average();  // This does the I2C and temperature calc
+            master_i2c_receive(0x68, 0x00);             // This tracks the time in seconds
+            if (adc_ready)
+            {
+                adc_ready = false;
+                adc_moving_average();                   // This does the I2C and temperature calc
+            }
         }
 
     }
@@ -286,7 +290,7 @@ void main(void)
             printf("Incorrect code. Try again.\n");
             counter = 0;  // Reinitiate counter to try again
             rgb_led_continue(3);            // Set LED to red
-            master_i2c_send('\0', 0x068);
+            master_i2c_send('\0', 0x058);
             master_i2c_send('\0', 0x048);
             //led_patterns('\0');
             for (i = 0; i < TABLE_SIZE; i++) 

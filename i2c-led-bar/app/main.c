@@ -14,7 +14,7 @@
 #define ledPattern05_init 0b00000001
 #define ledPattern06_init 0b01111111
 #define ledPattern07_init 0b00000001
-#define SLAVE_ADDR  0x68                    // Slave I2C Address
+#define SLAVE_ADDR  0x58                    // Slave I2C Address
 
 //------------------------------------------------------------------------------
 // Variables
