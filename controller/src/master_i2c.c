@@ -84,10 +84,9 @@ void master_i2c_receive(int address, int reg)
 }
 
 
-int return_time(void)
+int return_time(void)                // Returns time (seconds or minutes) to decimal
 {
     return ((time_in >> 4) * 10) + (time_in & 0x0F);
-    //return time_in;
 }
 
 

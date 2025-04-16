@@ -55,6 +55,7 @@ volatile unsigned int adc_result = 0;
 volatile unsigned int samples[9] = {0};
 volatile unsigned int sample_index = 0;
 volatile unsigned int temp_C = 0;
+volatile unsigned int seconds_total = 0;
 //--End Variables-------------------------------------------------------
 
 //----------------------------------------------------------------------
@@ -235,8 +236,11 @@ char keypad_unlocked(void)
         }
         if (bool_unlocked)
         {
-            master_i2c_receive(0x68, 0x00);             // This tracks the time in seconds
-            send_int_3_digit('S', return_time());
+            master_i2c_receive(0x68, 0x00);             // Seconds
+            seconds_total = return_time();
+            master_i2c_receive(0x68, 0x01);             // Minutes
+            seconds_total = return_time() * 60 + seconds_total;
+            send_int_3_digit('S', seconds_total);
             if (adc_ready)
             {
                 adc_ready = false;
