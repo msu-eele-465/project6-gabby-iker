@@ -37,8 +37,10 @@ char mode = '\0';
 char prev_mode = '\0';
 char new_window_size = '\0';
 char pattern_cur = '\0';
-int length = 0;
-bool in_temp_mode = false;
+int length_time = 0;
+int length_adc = 0;
+bool in_time_mode = false;
+bool in_temp_adc_mode = false;
 //--End Variables-------------------------------------------------------
 
 //----------------------------------------------------------------------
@@ -141,32 +143,62 @@ void lcd_print(const char* str, unsigned char startPos) {
     }
 }
 
-void display_temp(char input)
+void display_time(char input)
 {
     char string[2];
     string[0] = input;
     string[1] = '\0';
-    switch (length) {
+    switch (length_time) {
         case 0:
-            length++;
+            length_time++;
+            break;
+        case 1:
+            lcd_print(string, 0x42);
+            length_time++;
+            break;
+        case 2:
+            lcd_print(string, 0x43);
+            length_time++;
+            break;
+        case 3:
+            lcd_print(string, 0x44);
+            in_time_mode = false;
+            mode = 'A';
+            length_time = 0;
+            break;
+        default:
+            in_time_mode = false;
+            length_time = 0;
+            break;
+    }
+}
+
+void display_temp_adc(char input)
+{
+    char string[2];
+    string[0] = input;
+    string[1] = '\0';
+    switch (length_adc) {
+        case 0:
+            length_adc++;
             break;
         case 1:
             lcd_print(string, 0x0A);
-            length++;
+            length_adc++;
             break;
         case 2:
             lcd_print(string, 0x0B);
-            length++;
+            length_adc++;
             break;
         case 3:
             lcd_print(string, 0x0D);
-            in_temp_mode = false;
-            mode = prev_mode;
-            length = 0;
+            in_temp_adc_mode = false;
+            mode = 'A';
+            length_adc = 0;
             break;
         default:
-            in_temp_mode = false;
-            length = 0;
+            in_temp_adc_mode = false;
+            length_adc = 0;
             break;
     }
 }
@@ -191,11 +223,19 @@ void display_output(char input)
             send_command(0x01);
             lcd_print("OFF  ", 0x00);
             break;
-        case 'Y':           // display temperature
-            in_temp_mode = true;
-            prev_mode = mode;
+        case 'S':           // display seconds
+            in_time_mode = true;
+            //prev_mode = mode;
+            mode = 'S';
+            length_time = 0;
+            break;
+        case 'X':           // display I2C temperature
+            break;
+        case 'Y':           // display AD2 temperature
+            in_temp_adc_mode = true;
+            //prev_mode = mode;
             mode = 'Y';
-            length = 0; // reset position for temperature digits
+            length_adc = 0; // reset position for temperature digits
             break;
         case 'Z':           // just unlocked
             send_command(0x01);
@@ -212,32 +252,15 @@ void display_output(char input)
             break;
     }
 
-    if ((mode == 'A') && in_temp_mode == false) 
-    { 
-        // do stuff
+    if (mode == 'S')
+    {
+        display_time(input);
     }
 
-    if ((mode == 'B') && in_temp_mode == false) 
-    { 
-        // do stuff
-        mode = 'A';
-    }
-
-    if ((mode == 'C') && in_temp_mode == false) 
-    { 
-        // do stuff
-        mode = 'A';
-    }
-
-    if ((mode == 'D') && in_temp_mode == false) 
-    { 
-        // do stuff
-        mode = 'A';
-    }
     
     if (mode == 'Y')
     {
-        display_temp(input);
+        display_temp_adc(input);
     }
 }
 //--End Print Commands--------------------------------------------------

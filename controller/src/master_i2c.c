@@ -5,7 +5,7 @@
 #include "master_i2c.h"
 
 char packet;               // Data to be sent using I2C
-int data_in = 0;           // Data received via I2C
+int time_in = 0;           // Data received via I2C
 volatile bool i2c_done = false;
 
 //----------------------------------------------------------------------
@@ -35,6 +35,8 @@ void master_i2c_init(void)
     UCB1IE |= UCTXIE0 | UCRXIE0;            // Enable TX and RX interrupts
 
     __enable_interrupt();                   // Enable global interrupts
+
+    // master_i2c_send(0, ds3231)
 }
 
 //----------------------------------------------------------------------
@@ -82,7 +84,11 @@ void master_i2c_receive(int address, int reg)
 }
 
 
-
+int return_time(void)
+{
+    return ((time_in >> 4) * 10) + (time_in & 0x0F);
+    //return time_in;
+}
 
 
 //----------------------------------------------------------------------
@@ -94,7 +100,14 @@ __interrupt void EUSCI_B1_I2C_ISR(void)
     switch (UCB1IV)
     {
         case 0x16:                      // RXIFG0
-            data_in = UCB1RXBUF;
+            // if (address = ds3231)
+                // if (UCB1RXBUF = 6)
+                    // time_in = 0;
+                    // master_i2c_send(0, ds3231);
+                // else
+                    time_in = UCB1RXBUF;
+            // if address = lm92
+                // temp_in = UCB1RXBUF;
             i2c_done = true;
             break;
 

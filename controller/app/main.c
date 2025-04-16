@@ -1,5 +1,5 @@
 /*
- * EELE 465, Project 5
+ * EELE 465, Project 6
  * Gabby and Iker
  *
  * Target device: MSP430FR2355 Master
@@ -112,6 +112,23 @@ void adc_off(void)
     ADCCTL0 &= ~ADCON;     // Turn off ADC
 }
 
+void send_int_3_digit(char mode, int input)
+{
+    char buffer[4];
+    int j;
+
+    buffer[0] = (input / 100) % 10 + '0';
+    buffer[1] = (input / 10) % 10 + '0';
+    buffer[2] = input % 10 + '0';
+    buffer[3] = '\0';
+
+    master_i2c_send(mode, 0x048);
+    for (j = 0; buffer[j] != '\0'; j++) {
+        master_i2c_send(buffer[j], 0x048);
+    }
+}
+
+
 //----------------------------------------------------------------------
 // Begin Moving Average
 //----------------------------------------------------------------------
@@ -129,13 +146,7 @@ void adc_moving_average(void) {
     // LM19 sensor voltage to temperature conversion
     // Vtemp = -11.69 mV/°C * T + 1.8639 V → Solve for T
     temp_C = (unsigned int)((1.8639f - voltage) / 0.001169f);
-    char buffer[4];
-    int j;
-    snprintf(buffer, sizeof(buffer), "%d", temp_C);  // Convert to "xxx"
-    master_i2c_send('Y', 0x048);
-    for (j = 0; buffer[j] != '\0'; j++) {
-        master_i2c_send(buffer[j], 0x048);  // Send each character
-    }
+    send_int_3_digit('Y', temp_C);
 }
 //--End Movind Average--------------------------------------------------
 
@@ -204,8 +215,11 @@ char keypad_unlocked(void)
                         // Wait for key release
                         while ((PROWIN & (1 << row)) == 0);
                         PCOLOUT |= (1 << col);
+                        
+                        // switch(key_unlocked)
+                            // case 'A' match
 
-                        if (key_unlocked == 'D') {
+                        if (key_unlocked == 'D') { // or time = 300
                             rgb_led_continue(3);            // Set LED to red when 'D' is pressed
                             master_i2c_send('D', 0x058);    // led slave
                             master_i2c_send('D', 0x048);    // lcd slave
@@ -222,6 +236,7 @@ char keypad_unlocked(void)
         if (bool_unlocked)
         {
             master_i2c_receive(0x68, 0x00);             // This tracks the time in seconds
+            send_int_3_digit('S', return_time());
             if (adc_ready)
             {
                 adc_ready = false;
