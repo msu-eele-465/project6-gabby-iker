@@ -151,6 +151,15 @@ void adc_moving_average(void) {
 }
 //--End Movind Average--------------------------------------------------
 
+void system_lock(void)
+{
+    rgb_led_continue(3);            // Set LED to red when 'D' is pressed
+    master_i2c_send('D', 0x058);    // led slave
+    master_i2c_send('D', 0x048);    // lcd slave
+    bool_unlocked = false;
+    adc_off();
+}
+
 //----------------------------------------------------------------------
 // Begin Unlocking Routine
 //----------------------------------------------------------------------
@@ -221,11 +230,7 @@ char keypad_unlocked(void)
                             // case 'A' match
 
                         if (key_unlocked == 'D') { // or time = 300
-                            rgb_led_continue(3);            // Set LED to red when 'D' is pressed
-                            master_i2c_send('D', 0x058);    // led slave
-                            master_i2c_send('D', 0x048);    // lcd slave
-                            bool_unlocked = false;
-                            adc_off();
+                            system_lock();
                             return key_unlocked;
                         }
                     }
