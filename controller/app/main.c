@@ -162,6 +162,7 @@ void system_lock(void)
     master_i2c_send('D', LCD_ADDR);    // lcd slave
     bool_unlocked = false;
     adc_off();
+    P3OUT &= ~(BIT0 | BIT1); // Force both P3.0 and P3.1 low initially
 }
 
 //----------------------------------------------------------------------
@@ -223,6 +224,20 @@ char keypad_unlocked(void)
                     if ((PROWIN & (1 << row)) == 0) {
                         key_unlocked = keypad[row][col];
                         if (key_unlocked != 'D') {
+                            switch(key_unlocked)
+                            {
+                                case 'A':
+                                    P3OUT &= ~BIT1;  // P3.1 = Low
+                                    debounce();
+                                    P3OUT |= BIT0;   // P3.0 = High
+                                    break;
+
+                                case 'B':
+                                    P3OUT &= ~BIT0;  // P3.0 = Low
+                                    debounce();
+                                    P3OUT |= BIT1;   // P3.1 = High
+                                    break;
+                            }
                             master_i2c_send(key_unlocked, LED_ADDR);   // led slave
                             master_i2c_send(key_unlocked, LCD_ADDR);   // lcd slave
                         }
@@ -245,6 +260,7 @@ char keypad_unlocked(void)
         }
         if (bool_unlocked)
         {
+            //master_i2c_receive(LM, int reg)
             master_i2c_receive(DS3231_ADDR, 0x00);             // Seconds
             seconds_total = return_time();
             master_i2c_receive(DS3231_ADDR, 0x01);             // Minutes
@@ -267,6 +283,9 @@ void main(void)
 {   
     int counter, i, equal;
     char introduced_password[TABLE_SIZE], key; 
+    P3DIR |= BIT0 | BIT1;    // Set as output
+    P3OUT &= ~(BIT0 | BIT1); // Force both P3.0 and P3.1 low initially
+
 
     keypad_init();
     heartbeat_init();
