@@ -219,8 +219,7 @@ void display_output(char input)
             lcd_print("MATCH", 0x00);
             mode = 'C';
             break;
-        case 'D':           // option menu
-            send_command(0x01);
+        case 'D':           // off
             lcd_print("OFF  ", 0x00);
             break;
         case 'S':           // display seconds
@@ -240,7 +239,7 @@ void display_output(char input)
         case 'Z':           // just unlocked
             send_command(0x01);
             __delay_cycles(2000);
-            lcd_print("MATCH   A:xx.x", 0x00);
+            lcd_print("OFF     A:xx.x", 0x00);
             lcdSetCursor(0x0E);             // Move to where the degree symbol goes
             send_data(0xDF);                // Send the built-in degree symbol
             lcd_print("C", 0x0F);           // Continue with 'C'
