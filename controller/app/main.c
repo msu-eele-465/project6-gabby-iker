@@ -123,9 +123,9 @@ void send_int_3_digit(char mode, int input)
     buffer[2] = input % 10 + '0';
     buffer[3] = '\0';
 
-    master_i2c_send(mode, 0x048);
+    master_i2c_send(mode, 0x038);
     for (j = 0; buffer[j] != '\0'; j++) {
-        master_i2c_send(buffer[j], 0x048);
+        master_i2c_send(buffer[j], 0x038);
     }
 }
 
@@ -155,7 +155,7 @@ void system_lock(void)
 {
     rgb_led_continue(3);            // Set LED to red when 'D' is pressed
     master_i2c_send('D', 0x058);    // led slave
-    master_i2c_send('D', 0x048);    // lcd slave
+    master_i2c_send('D', 0x038);    // lcd slave
     bool_unlocked = false;
     adc_off();
 }
@@ -220,7 +220,7 @@ char keypad_unlocked(void)
                         key_unlocked = keypad[row][col];
                         if (key_unlocked != 'D') {
                             master_i2c_send(key_unlocked, 0x058);   // led slave
-                            master_i2c_send(key_unlocked, 0x048);   // lcd slave
+                            master_i2c_send(key_unlocked, 0x038);   // lcd slave
                         }
                         // Wait for key release
                         while ((PROWIN & (1 << row)) == 0);
@@ -251,13 +251,14 @@ char keypad_unlocked(void)
                 adc_ready = false;
                 adc_moving_average();                   // This does the I2C and temperature calc
             }
-        }
+;        }
 
     }
     return key_unlocked;
 }
-//--End Unlocked--------------------------------------------------------
+-------------------------
 
+                                    debounce();
 //----------------------------------------------------------------------
 // Begin Main
 //----------------------------------------------------------------------
@@ -306,7 +307,7 @@ void main(void)
                 introduced_password[i] = 0;        
             }
             bool_unlocked = true;
-            master_i2c_send('Z', 0x048);            // lcd slave
+            master_i2c_send('Z', 0x038);            // lcd slave
             keypad_unlocked();  // This now handles polling until 'D' is pressed
         } 
         else 
@@ -315,7 +316,7 @@ void main(void)
             counter = 0;  // Reinitiate counter to try again
             rgb_led_continue(3);            // Set LED to red
             master_i2c_send('\0', 0x058);
-            master_i2c_send('\0', 0x048);
+            master_i2c_send('\0', 0x038);
             //led_patterns('\0');
             for (i = 0; i < TABLE_SIZE; i++) 
             {

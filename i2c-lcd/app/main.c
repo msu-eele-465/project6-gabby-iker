@@ -25,7 +25,7 @@
 #define D5 BIT5     // P1.5
 #define D6 BIT6     // P1.6
 #define D7 BIT7     // P1.7
-#define SLAVE_ADDR  0x48                    // Slave I2C Address
+#define SLAVE_ADDR  0x38                    // Slave I2C Address
 //--End Definitions-----------------------------------------------------
 
 //----------------------------------------------------------------------
