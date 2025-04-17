@@ -220,6 +220,7 @@ void display_output(char input)
             mode = 'C';
             break;
         case 'D':           // off
+            send_command(0x01);
             lcd_print("OFF  ", 0x00);
             break;
         case 'S':           // display seconds
