@@ -1,5 +1,5 @@
 /*
- * EELE 465, Project 5
+ * EELE 465, Project 6
  * Gabby and Iker
  *
  * Target device: MSP430FR2355 Master
@@ -35,6 +35,10 @@
 #define COL 4
 #define ROW 4
 #define TABLE_SIZE 4
+#define LCD_ADDR    0x38
+#define LM92_ADDR   0x48
+#define LED_ADDR    0x58
+#define DS3231_ADDR 0x68
 //--End Definitions-----------------------------------------------------
 
 //----------------------------------------------------------------------
@@ -55,6 +59,7 @@ volatile unsigned int adc_result = 0;
 volatile unsigned int samples[9] = {0};
 volatile unsigned int sample_index = 0;
 volatile unsigned int temp_C = 0;
+volatile unsigned int seconds_total = 0;
 //--End Variables-------------------------------------------------------
 
 //----------------------------------------------------------------------
@@ -112,6 +117,23 @@ void adc_off(void)
     ADCCTL0 &= ~ADCON;     // Turn off ADC
 }
 
+void send_int_3_digit(char mode, int input)
+{
+    char buffer[4];
+    int j;
+
+    buffer[0] = (input / 100) % 10 + '0';
+    buffer[1] = (input / 10) % 10 + '0';
+    buffer[2] = input % 10 + '0';
+    buffer[3] = '\0';
+
+    master_i2c_send(mode, LCD_ADDR);
+    for (j = 0; buffer[j] != '\0'; j++) {
+        master_i2c_send(buffer[j], LCD_ADDR);
+    }
+}
+
+
 //----------------------------------------------------------------------
 // Begin Moving Average
 //----------------------------------------------------------------------
@@ -129,15 +151,19 @@ void adc_moving_average(void) {
     // LM19 sensor voltage to temperature conversion
     // Vtemp = -11.69 mV/°C * T + 1.8639 V → Solve for T
     temp_C = (unsigned int)((1.8639f - voltage) / 0.001169f);
-    char buffer[4];
-    int j;
-    snprintf(buffer, sizeof(buffer), "%d", temp_C);  // Convert to "xxx"
-    master_i2c_send('Y', 0x048);
-    for (j = 0; buffer[j] != '\0'; j++) {
-        master_i2c_send(buffer[j], 0x048);  // Send each character
-    }
+    send_int_3_digit('Y', temp_C);
 }
 //--End Movind Average--------------------------------------------------
+
+void system_lock(void)
+{
+    rgb_led_continue(3);            // Set LED to red when 'D' is pressed
+    master_i2c_send('D', LED_ADDR);    // led slave
+    master_i2c_send('D', LCD_ADDR);    // lcd slave
+    bool_unlocked = false;
+    adc_off();
+    P3OUT &= ~(BIT0 | BIT1); // Force both P3.0 and P3.1 low initially
+}
 
 //----------------------------------------------------------------------
 // Begin Unlocking Routine
@@ -198,19 +224,32 @@ char keypad_unlocked(void)
                     if ((PROWIN & (1 << row)) == 0) {
                         key_unlocked = keypad[row][col];
                         if (key_unlocked != 'D') {
-                            master_i2c_send(key_unlocked, 0x068);   // led slave
-                            master_i2c_send(key_unlocked, 0x048);   // lcd slave
+                            switch(key_unlocked)
+                            {
+                                case 'A':
+                                    P3OUT &= ~BIT1;  // P3.1 = Low
+                                    debounce();
+                                    P3OUT |= BIT0;   // P3.0 = High
+                                    break;
+
+                                case 'B':
+                                    P3OUT &= ~BIT0;  // P3.0 = Low
+                                    debounce();
+                                    P3OUT |= BIT1;   // P3.1 = High
+                                    break;
+                            }
+                            master_i2c_send(key_unlocked, LED_ADDR);   // led slave
+                            master_i2c_send(key_unlocked, LCD_ADDR);   // lcd slave
                         }
                         // Wait for key release
                         while ((PROWIN & (1 << row)) == 0);
                         PCOLOUT |= (1 << col);
+                        
+                        // switch(key_unlocked)
+                            // case 'A' match
 
-                        if (key_unlocked == 'D') {
-                            rgb_led_continue(3);            // Set LED to red when 'D' is pressed
-                            master_i2c_send('D', 0x068);    // led slave
-                            master_i2c_send('D', 0x048);    // lcd slave
-                            bool_unlocked = false;
-                            adc_off();
+                        if (key_unlocked == 'D') { // or time = 300
+                            system_lock();
                             return key_unlocked;
                         }
                     }
@@ -219,17 +258,24 @@ char keypad_unlocked(void)
             // Deactivate column
             PCOLOUT |= (1 << col);
         }
-        if (bool_unlocked && adc_ready)
+        if (bool_unlocked)
         {
-            adc_ready = false;
-            adc_moving_average();  // This does the I2C and temperature calc
-        }
+            //master_i2c_receive(LM, int reg)
+            master_i2c_receive(DS3231_ADDR, 0x00);             // Seconds
+            seconds_total = return_time();
+            master_i2c_receive(DS3231_ADDR, 0x01);             // Minutes
+            seconds_total = return_time() * 60 + seconds_total;
+            send_int_3_digit('S', seconds_total);
+            if (adc_ready)
+            {
+                adc_ready = false;
+                adc_moving_average();                   // This does the I2C and temperature calc
+            }
+;        }
 
     }
     return key_unlocked;
 }
-//--End Unlocked--------------------------------------------------------
-
 //----------------------------------------------------------------------
 // Begin Main
 //----------------------------------------------------------------------
@@ -237,6 +283,9 @@ void main(void)
 {   
     int counter, i, equal;
     char introduced_password[TABLE_SIZE], key; 
+    P3DIR |= BIT0 | BIT1;    // Set as output
+    P3OUT &= ~(BIT0 | BIT1); // Force both P3.0 and P3.1 low initially
+
 
     keypad_init();
     heartbeat_init();
@@ -278,7 +327,7 @@ void main(void)
                 introduced_password[i] = 0;        
             }
             bool_unlocked = true;
-            master_i2c_send('Z', 0x048);            // lcd slave
+            master_i2c_send('Z', LCD_ADDR);            // lcd slave
             keypad_unlocked();  // This now handles polling until 'D' is pressed
         } 
         else 
@@ -286,8 +335,8 @@ void main(void)
             printf("Incorrect code. Try again.\n");
             counter = 0;  // Reinitiate counter to try again
             rgb_led_continue(3);            // Set LED to red
-            master_i2c_send('\0', 0x068);
-            master_i2c_send('\0', 0x048);
+            master_i2c_send('\0', LED_ADDR);
+            master_i2c_send('\0', LCD_ADDR);
             //led_patterns('\0');
             for (i = 0; i < TABLE_SIZE; i++) 
             {

@@ -25,7 +25,7 @@
 #define D5 BIT5     // P1.5
 #define D6 BIT6     // P1.6
 #define D7 BIT7     // P1.7
-#define SLAVE_ADDR  0x48                    // Slave I2C Address
+#define SLAVE_ADDR  0x38                    // Slave I2C Address
 //--End Definitions-----------------------------------------------------
 
 //----------------------------------------------------------------------
@@ -37,8 +37,10 @@ char mode = '\0';
 char prev_mode = '\0';
 char new_window_size = '\0';
 char pattern_cur = '\0';
-int length = 0;
-bool in_temp_mode = false;
+int length_time = 0;
+int length_adc = 0;
+bool in_time_mode = false;
+bool in_temp_adc_mode = false;
 //--End Variables-------------------------------------------------------
 
 //----------------------------------------------------------------------
@@ -95,10 +97,10 @@ void send_command(unsigned char cmd) {
     sendNibble(cmd >> 4);  // Enviar los 4 bits más significativos
     sendNibble(cmd);  // Enviar los 4 bits menos significativos
     __delay_cycles(4000); // Retardo para asegurarse de que el comando se procese
+}
 
 void lcdSetCursor(unsigned char position) {
     send_command(0x80 | position);  // Establecer la dirección del cursor en la DDRAM
-}
 }
 //--End Send Commands---------------------------------------------------
 
@@ -141,32 +143,62 @@ void lcd_print(const char* str, unsigned char startPos) {
     }
 }
 
-void display_temp(char input)
+void display_time(char input)
 {
     char string[2];
     string[0] = input;
     string[1] = '\0';
-    switch (length) {
+    switch (length_time) {
         case 0:
-            length++;
+            length_time++;
             break;
         case 1:
             lcd_print(string, 0x42);
-            length++;
+            length_time++;
             break;
         case 2:
             lcd_print(string, 0x43);
-            length++;
+            length_time++;
             break;
         case 3:
-            lcd_print(string, 0x45);
-            in_temp_mode = false;
-            mode = prev_mode;
-            length = 0;
+            lcd_print(string, 0x44);
+            in_time_mode = false;
+            mode = 'A';
+            length_time = 0;
             break;
         default:
-            in_temp_mode = false;
-            length = 0;
+            in_time_mode = false;
+            length_time = 0;
+            break;
+    }
+}
+
+void display_temp_adc(char input)
+{
+    char string[2];
+    string[0] = input;
+    string[1] = '\0';
+    switch (length_adc) {
+        case 0:
+            length_adc++;
+            break;
+        case 1:
+            lcd_print(string, 0x0A);
+            length_adc++;
+            break;
+        case 2:
+            lcd_print(string, 0x0B);
+            length_adc++;
+            break;
+        case 3:
+            lcd_print(string, 0x0D);
+            in_temp_adc_mode = false;
+            mode = 'A';
+            length_adc = 0;
+            break;
+        default:
+            in_temp_adc_mode = false;
+            length_adc = 0;
             break;
     }
 }
@@ -175,96 +207,59 @@ void display_output(char input)
 {
     switch (input)
     {
-        case 'A':
+        case 'A':           // heat mode
+            lcd_print("HEAT ", 0x00);
             mode = 'A';
             break;
-        case 'B':
-            lcd_print("SET WINDOW SIZE ", 0x00);
+        case 'B':           // cool mode
+            lcd_print("COOL ", 0x00);
             mode = 'B';
             break;
-        case 'C':
-            lcd_print("SET PATTERN     ", 0x00);
+        case 'C':           // match mode
+            lcd_print("MATCH", 0x00);
             mode = 'C';
             break;
-        case 'D':
-            send_command(0x01);
+        case 'D':           // off
+            lcd_print("OFF  ", 0x00);
             break;
-        case 'Y':
-            in_temp_mode = true;
-            prev_mode = mode;
+        case 'S':           // display seconds
+            in_time_mode = true;
+            //prev_mode = mode;
+            mode = 'S';
+            length_time = 0;
+            break;
+        case 'X':           // display I2C temperature
+            break;
+        case 'Y':           // display AD2 temperature
+            in_temp_adc_mode = true;
+            //prev_mode = mode;
             mode = 'Y';
-            length = 0; // reset position for temperature digits
+            length_adc = 0; // reset position for temperature digits
             break;
-        case 'Z':
+        case 'Z':           // just unlocked
             send_command(0x01);
             __delay_cycles(2000);
-            lcd_print("NO PATTERN", 0x00);
-            lcd_print("T=xx.x", 0x40);      // Start of temperature display
-            lcdSetCursor(0x46);             // Move to where the degree symbol goes
+            lcd_print("OFF     A:xx.x", 0x00);
+            lcdSetCursor(0x0E);             // Move to where the degree symbol goes
             send_data(0xDF);                // Send the built-in degree symbol
-            lcd_print("C", 0x47);           // Continue with 'C'
-            lcd_print("N=3", 0x4D);
+            lcd_print("C", 0x0F);           // Continue with 'C'
+            lcd_print("3 xxxs  P:xx.x", 0x40);
+            lcdSetCursor(0x4E);             // Move to where the degree symbol goes
+            send_data(0xDF);                // Send the built-in degree symbol
+            lcd_print("C", 0x4F);           // Continue with 'C'
             mode = 'A';
             break;
     }
 
-    if ((mode == 'B') && (input >= '1' && input <= '9') && in_temp_mode == false) 
-    { 
-        new_window_size = input;
-        lcd_print("N=", 0x4D);
-        send_data(new_window_size);
-        mode = 'C';
-        input = pattern_cur;
-    } 
-           
-    if (mode == 'C' && in_temp_mode == false)
+    if (mode == 'S')
     {
-        switch (input) 
-        { 
-            case '0':
-                lcd_print("STATIC          ", 0x00);
-                pattern_cur = input;
-                mode = 'A';
-                break;
-            case '1':
-                lcd_print("TOGGLE          ", 0x00);
-                pattern_cur = input;
-                mode = 'A';
-                break;
-            case '2':
-                lcd_print("UP COUNTER      ", 0x00);
-                pattern_cur = input;
-                mode = 'A';
-                break;
-            case '3':
-                lcd_print("IN AND OUT      ", 0x00);
-                pattern_cur = input;
-                mode = 'A';
-                break;
-            case '4':
-                lcd_print("DOWN COUNTER    ", 0x00);
-                pattern_cur = input;
-                mode = 'A';
-                break;
-            case '5':
-                lcd_print("ROTATE 1 LEFT   ", 0x00);
-                pattern_cur = input;
-                mode = 'A';
-                break;
-            case '6':
-                lcd_print("ROTATE 7 RIGHT  ", 0x00);
-                pattern_cur = input;
-                mode = 'A';
-                break;
-            case 'D':
-                send_command(0x01);
-                mode = 'A';
-                break;
-        }
+        display_time(input);
     }
+
+    
     if (mode == 'Y')
     {
-        display_temp(input);
+        display_temp_adc(input);
     }
 }
 //--End Print Commands--------------------------------------------------

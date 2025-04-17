@@ -7,36 +7,19 @@
 //------------------------------------------------------------------------------
 #define ledOn 0xFF
 #define ledOff 0
-#define ledPattern01_init 0b10101010
-#define ledPattern02_init 0
-#define ledPattern03_init 0b00011000
-#define ledPattern04_init 0xFF
-#define ledPattern05_init 0b00000001
-#define ledPattern06_init 0b01111111
-#define ledPattern07_init 0b00000001
-#define SLAVE_ADDR  0x68                    // Slave I2C Address
+#define SLAVE_ADDR  0x58                    // Slave I2C Address
+#define timing_base 32768;                 // 1 second
 
 //------------------------------------------------------------------------------
 // Variables
 //------------------------------------------------------------------------------
 bool new_input_bool = true;                 // Initialize new input to true
-bool pattern3_out = true;                   // Start in/out pattern going out
 char key_cur;                               // Store key press
 char key_prev = '\0';                       // Initialize keypress to null
-int pattern1_cur;
-int pattern2_cur;
-int pattern3_cur;
-int pattern4_cur;
-int pattern5_cur;
-int pattern6_cur;
-bool pattern1_start = false;
-bool pattern2_start = false;
-bool pattern3_start = false;
-bool pattern4_start = false;
-bool pattern5_start = false;
-bool pattern6_start = false;
-bool bool_set_led   = false;
-unsigned int timing_base = 32768;           // 1 second
+int pattern_a_cur;
+int pattern_b_cur;
+bool pattern_a_start = false;
+bool pattern_b_start = false;
 int timing_adj;                             // + or - 0.5 seconds
 unsigned char ledPattern_state;             // Store LED pattern
 volatile unsigned char receivedData = 0;    // Recieved data
@@ -125,103 +108,47 @@ void led_patterns(char key_cur)
 {
     switch(key_cur)
     {
-        case '0':           // Static state
-            ledPattern_state = ledPattern01_init;
-            break;
-        case '1':           // Toggle
-            TB1CCR0 = timing_base;
+        case 'A':           // Heat
             if (new_input_bool) {
-                if ((key_cur == key_prev | pattern1_start == false))
+                if (key_cur == key_prev | pattern_a_start == false)
                 {
-                    ledPattern_state = ledPattern01_init;
-                    pattern1_start = true;
+                    ledPattern_state = ledOff;
+                    pattern_a_start = true;
                 }
                 else
-                    ledPattern_state = pattern1_cur;
-                new_input_bool = false;
-            } else
-                ledPattern_state = pattern1_cur = (ledPattern_state ^= 0xFF);
-            break;
-        case '2':             // Up counter
-            TB1CCR0 = timing_base >> 1;
-            if (new_input_bool) {
-                if (key_cur == key_prev | pattern2_start == false)
-                {
-                    ledPattern_state = ledPattern02_init;
-                    pattern2_start = true;
-                }
-                else
-                    ledPattern_state = pattern2_cur;
-                new_input_bool = false;
-            } else
-                ledPattern_state = pattern2_cur = (++ledPattern_state);
-            break;
-        case '3':             // in and out
-            TB1CCR0 = timing_base >> 1;
-            if (new_input_bool) {
-                if (key_cur == key_prev | pattern3_start == false)
-                {
-                    ledPattern_state = ledPattern03_init;
-                    pattern3_start = true;
-                }
-                else
-                    ledPattern_state = pattern3_cur;
+                    ledPattern_state = pattern_a_cur;
                 new_input_bool = false;
             }
-            else if ((pattern3_out == true & ledPattern_state != 0b10000001) | (pattern3_out == false & ledPattern_state == 0b00011000))  // out
+            else if ((ledPattern_state != 0xFF))  // Fill to the ??
             {
-                ledPattern_state = pattern3_cur = (ledPattern_state = ~ledPattern_state & ((0xF0 & ledPattern_state << 1) | (0xF & ledPattern_state >> 1) | ledPattern_state << 7 | ledPattern_state >> 7));
-                pattern3_out = true;
+                ledPattern_state = (ledPattern_state >> 1) | 0x80;  // Shift right and force leftmost bit ON
             }
-            else if ((pattern3_out == false & ledPattern_state != 0b00011000) | (pattern3_out == true & ledPattern_state == 0b10000001))  // in
+            else  // Reset LED bar
             {
-                ledPattern_state = pattern3_cur = (ledPattern_state = ~ledPattern_state & ((0xF & ledPattern_state << 1) | (0xF0 & ledPattern_state >> 1) | ledPattern_state << 7 | ledPattern_state >> 7));
-                pattern3_out = false;
+                ledPattern_state = ledOff;
             }
             break;
-        case '4':             // down counter, extra credit
-            TB1CCR0 = timing_base >> 2;
+        case 'B':           // Cool
             if (new_input_bool) {
-                if (key_cur == key_prev | pattern4_start == false)
+                if (key_cur == key_prev | pattern_b_start == false)
                 {
-                    ledPattern_state = ledPattern04_init;
-                    pattern4_start = true;
+                    ledPattern_state = ledOff;
+                    pattern_b_start = true;
                 }
                 else
-                    ledPattern_state = pattern4_cur;
+                    ledPattern_state = pattern_a_cur;
                 new_input_bool = false;
-            } else
-                ledPattern_state = pattern4_cur = (--ledPattern_state);
+            }
+            else if ((ledPattern_state != 0xFF))  // Fill to the ??
+            {
+                ledPattern_state = (ledPattern_state << 1) | 0x01;  // Shift right and force leftmost bit ON
+            }
+            else  // Reset LED bar
+            {
+                ledPattern_state = ledOff;
+            }
             break;
-        case '5':             // rotate one left, extra credit
-            TB1CCR0 = timing_base + (timing_base >> 1);
-        if (new_input_bool) {
-            if (key_cur == key_prev | pattern5_start == false)
-                {
-                    ledPattern_state = ledPattern05_init;
-                    pattern5_start = true;
-                }
-            else
-                ledPattern_state = pattern5_cur;
-                new_input_bool = false;
-            } else
-                ledPattern_state = pattern5_cur = (ledPattern_state = ledPattern_state << 1 | ledPattern_state >> 7);
-            break;
-        case '6':             // rotate 7 right, extra credit
-            TB1CCR0 = timing_base >> 1;
-            if (new_input_bool) {
-                if (key_cur == key_prev | pattern6_start == false)
-                {
-                    ledPattern_state = ledPattern06_init;
-                    pattern6_start = true;
-                }
-                else
-                    ledPattern_state = pattern6_cur;
-                new_input_bool = false;
-            } else
-                ledPattern_state = pattern6_cur = (ledPattern_state = ledPattern_state >> 1 | ledPattern_state << 7);
-            break;
-        default:
+        default:             // Off
             ledPattern_state = ledOff;
             break;
     }
@@ -234,18 +161,10 @@ void led_patterns(char key_cur)
 //------------------------------------------------------------------------------
 void set_led_bar(char key_input)
 {
-    if (key_input == 'C') {
-        bool_set_led = true;
-    } else if (key_input == 'A' || key_input == 'B') {
-        bool_set_led = false;
-    }
-    if ((bool_set_led == true && (key_input >= '0' && key_input <= '6')) || key_input == 'D') {
-        key_prev = key_cur;
-        key_cur = key_input;
-        new_input_bool = true;
-        led_patterns(key_cur);
-        bool_set_led = false;
-    }
+    key_prev = key_cur;
+    key_cur = key_input;
+    new_input_bool = true;
+    led_patterns(key_cur);
 }
 //--End Set LED Bar-------------------------------------------------------------
 
