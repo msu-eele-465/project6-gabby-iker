@@ -35,6 +35,10 @@
 #define COL 4
 #define ROW 4
 #define TABLE_SIZE 4
+#define LCD_ADDR    0x38
+#define LM92_ADDR   0x48
+#define LED_ADDR    0x58
+#define DS3231_ADDR 0x68
 //--End Definitions-----------------------------------------------------
 
 //----------------------------------------------------------------------
@@ -123,9 +127,9 @@ void send_int_3_digit(char mode, int input)
     buffer[2] = input % 10 + '0';
     buffer[3] = '\0';
 
-    master_i2c_send(mode, 0x038);
+    master_i2c_send(mode, LCD_ADDR);
     for (j = 0; buffer[j] != '\0'; j++) {
-        master_i2c_send(buffer[j], 0x038);
+        master_i2c_send(buffer[j], LCD_ADDR);
     }
 }
 
@@ -154,8 +158,8 @@ void adc_moving_average(void) {
 void system_lock(void)
 {
     rgb_led_continue(3);            // Set LED to red when 'D' is pressed
-    master_i2c_send('D', 0x058);    // led slave
-    master_i2c_send('D', 0x038);    // lcd slave
+    master_i2c_send('D', LED_ADDR);    // led slave
+    master_i2c_send('D', LCD_ADDR);    // lcd slave
     bool_unlocked = false;
     adc_off();
 }
@@ -219,8 +223,8 @@ char keypad_unlocked(void)
                     if ((PROWIN & (1 << row)) == 0) {
                         key_unlocked = keypad[row][col];
                         if (key_unlocked != 'D') {
-                            master_i2c_send(key_unlocked, 0x058);   // led slave
-                            master_i2c_send(key_unlocked, 0x038);   // lcd slave
+                            master_i2c_send(key_unlocked, LED_ADDR);   // led slave
+                            master_i2c_send(key_unlocked, LCD_ADDR);   // lcd slave
                         }
                         // Wait for key release
                         while ((PROWIN & (1 << row)) == 0);
@@ -241,9 +245,9 @@ char keypad_unlocked(void)
         }
         if (bool_unlocked)
         {
-            master_i2c_receive(0x68, 0x00);             // Seconds
+            master_i2c_receive(DS3231_ADDR, 0x00);             // Seconds
             seconds_total = return_time();
-            master_i2c_receive(0x68, 0x01);             // Minutes
+            master_i2c_receive(DS3231_ADDR, 0x01);             // Minutes
             seconds_total = return_time() * 60 + seconds_total;
             send_int_3_digit('S', seconds_total);
             if (adc_ready)
@@ -256,9 +260,6 @@ char keypad_unlocked(void)
     }
     return key_unlocked;
 }
--------------------------
-
-                                    debounce();
 //----------------------------------------------------------------------
 // Begin Main
 //----------------------------------------------------------------------
@@ -307,7 +308,7 @@ void main(void)
                 introduced_password[i] = 0;        
             }
             bool_unlocked = true;
-            master_i2c_send('Z', 0x038);            // lcd slave
+            master_i2c_send('Z', LCD_ADDR);            // lcd slave
             keypad_unlocked();  // This now handles polling until 'D' is pressed
         } 
         else 
@@ -315,8 +316,8 @@ void main(void)
             printf("Incorrect code. Try again.\n");
             counter = 0;  // Reinitiate counter to try again
             rgb_led_continue(3);            // Set LED to red
-            master_i2c_send('\0', 0x058);
-            master_i2c_send('\0', 0x038);
+            master_i2c_send('\0', LED_ADDR);
+            master_i2c_send('\0', LCD_ADDR);
             //led_patterns('\0');
             for (i = 0; i < TABLE_SIZE; i++) 
             {
