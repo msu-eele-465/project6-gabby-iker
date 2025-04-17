@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 #define ledOn 0xFF
 #define ledOff 0
-#define SLAVE_ADDR  0x68                    // Slave I2C Address
+#define SLAVE_ADDR  0x58                    // Slave I2C Address
 #define timing_base 32768;                 // 1 second
 
 //------------------------------------------------------------------------------
