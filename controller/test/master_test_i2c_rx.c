@@ -1,68 +1,69 @@
-#include <msp430.h>
+#include <msp430fr2355.h>
+#include <stdint.h>
 
-int data_in = 0;
+#define LM92_ADDR 0x48
 
-int main(void)
+float temp_C = 0;
+
+void main(void)
 {
-    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
-    
-    UCB1CTLW0 |= UCSWRST;                   // Put eUSCI_B0 into software reset
+    WDTCTL = WDTPW | WDTHOLD;
+    PM5CTL0 &= ~LOCKLPM5;
 
-    UCB1CTLW0 |= UCSSEL_3;                  // Choose BRCLK=SMCLK=1MHz
-    UCB1BRW = 10;                           // Divide BRCLK by 10 for SCL=100kHz
+    // SDA = P4.6, SCL = P4.7
+    P4SEL0 |= BIT6 | BIT7;
+    P4SEL1 &= ~(BIT6 | BIT7);
 
-    UCB1CTLW0 |= UCMODE_3;                  // Put into I2C mode
-    UCB1CTLW0 |= UCMST;                     // Put into master mode
-    UCB1I2CSA = 0x0058;                     // Slave address = 0x68
+    // Configuración inicial del I2C
+    UCB1CTLW0 = UCSWRST;
+    UCB1CTLW0 |= UCMST | UCMODE_3 | UCSSEL_2;
+    UCB1BRW = 10;
+    UCB1I2CSA = LM92_ADDR;
+    UCB1CTLW0 &= ~UCSWRST;
 
-    UCB1CTLW1 |= UCASTP_2;                  // Auto STOP when UCB1TBCNT reached
-    UCB1TBCNT = 0X01;                       // # of Bytes in Packet
+    int16_t raw_temp;
+    uint8_t msb = 0, lsb = 0;
 
-    P4SEL1 &= ~BIT6;                        // We want P1.2 = SDA
-    P4SEL0 |= BIT6;
-    P4SEL1 &= ~BIT7;                        // We want P1.3 = SCL
-    P4SEL0 |= BIT7;
-
-    PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode
-                                            // to activate previously configured port settings
-    UCB1CTLW0 &= ~UCSWRST;                  // Take eUSCI_B0 out of SW reset
-    UCB1IE |= UCTXIE0;                      // Enable I2C Tx0 IRQ
-    UCB1IE |= UCRXIE0;
-    __enable_interrupt();                   // Enable Maskable IRQs
-    
-    while(1)
+    while (1)
     {
-        //Transmit Register Address with Write Message
-        UCB1CTLW0 |= UCTR;                  // Put into Tx mode
-        UCB1CTLW0 |= UCTXSTT;               // Generate START condition
-        
-        while ((UCB1IFG  & UCSTPIFG) == 0); // Wait for STOP
-            UCB1IFG &= ~UCSTPIFG;           // Clear STOP flag
-        
-        // Recieve Data from Rx
-        UCB1CTLW0 &= ~UCTR;             // Put into Rx mode
-        UCB1CTLW0 |= UCTXSTT;               // Generate START condition
-        
-        while ((UCB1IFG  & UCSTPIFG) == 0); // Wait for STOP
-            UCB1IFG &= ~UCSTPIFG;           // Clear STOP flag
-    }
-}
+        // 🔄 Reiniciar I2C antes de cada ciclo (soluciona el desfase)
+        UCB1CTLW0 |= UCSWRST;
+        UCB1CTLW0 &= ~UCSWRST;
 
-//----------------------------------------------------------------------
-// Begin Interrupt Service Routine
-//----------------------------------------------------------------------
+        // --- Write: enviar 0x00 para seleccionar registro temperatura ---
+        while (UCB1CTLW0 & UCTXSTP);
+        UCB1CTLW0 |= UCTR | UCTXSTT;
+        while (!(UCB1IFG & UCTXIFG0));
+        UCB1TXBUF = 0x00;
+        while (!(UCB1IFG & UCTXIFG0));
+        UCB1CTLW0 |= UCTXSTP;
+        while (UCB1CTLW0 & UCTXSTP);
 
-#pragma vector=EUSCI_B1_VECTOR
-__interrupt void EUSCI_B1_I2C_ISR(void){
-    switch (UCB1IV)
-    {
-        case 0x16:                  // ID 16: RXIFG0
-            data_in = UCB1RXBUF;    // Retrieve data
-            break;
-        case 0x18:                  // ID 18: TXIFG0
-            UCB1TXBUF = 0x03;       // Send Reg Addr
-            break;
-        default:
-            break;
+        __delay_cycles(500);  // Pequeño delay
+
+        // --- Read: solicitar 2 bytes ---
+        while (UCB1CTLW0 & UCTXSTP);
+        UCB1CTLW0 &= ~UCTR;
+        UCB1CTLW0 |= UCTXSTT;
+        while (UCB1CTLW0 & UCTXSTT);
+
+        while (!(UCB1IFG & UCRXIFG0));
+        msb = UCB1RXBUF;
+
+        while (!(UCB1IFG & UCRXIFG0));
+        UCB1CTLW0 |= UCTXSTP;
+        while (!(UCB1IFG & UCRXIFG0));
+        lsb = UCB1RXBUF;
+
+        while (UCB1CTLW0 & UCTXSTP);
+
+        // --- Conversión a °C
+        raw_temp = ((int16_t)msb << 8) | lsb;
+        raw_temp >>= 3;
+        temp_C = raw_temp * 0.0625f;
+
+        __no_operation();  // 🔴 breakpoint para revisar temp_C
+
+        __delay_cycles(1000000);
     }
 }
