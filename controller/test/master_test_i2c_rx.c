@@ -1,7 +1,7 @@
 #include <msp430fr2355.h>
 #include <stdint.h>
 
-#define LM92_ADDR 0x4B
+#define LM92_ADDR 0x48
 
 float temp_C = 0;
 
