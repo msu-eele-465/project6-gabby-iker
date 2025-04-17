@@ -3,7 +3,7 @@
 
 #define LM92_ADDR 0x48
 
-float temp_C = 0;
+volatile unsigned int temp_in = 0;
 
 void main(void)
 {
@@ -26,7 +26,7 @@ void main(void)
 
     while (1)
     {
-        // 🔄 Reiniciar I2C antes de cada ciclo (soluciona el desfase)
+        // Reiniciar I2C antes de cada ciclo (soluciona el desfase)
         UCB1CTLW0 |= UCSWRST;
         UCB1CTLW0 &= ~UCSWRST;
 
@@ -60,9 +60,9 @@ void main(void)
         // --- Conversión a °C
         raw_temp = ((int16_t)msb << 8) | lsb;
         raw_temp >>= 3;
-        temp_C = raw_temp * 0.0625f;
+        temp_in = (raw_temp * 625 + 50) / 1000;
 
-        __no_operation();  // 🔴 breakpoint para revisar temp_C
+        __no_operation();  // breakpoint para revisar temp_in
 
         __delay_cycles(1000000);
     }
